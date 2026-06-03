@@ -1,0 +1,27 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.python-version
+
+# Airflow
+airflow/logs/
+airflow/airflow.db
+airflow/*.cfg
+airflow/*.cfg.bak
+airflow/webserver_config.py
+
+# Secrets — never commit these
+.env
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Airflow runtime files
+airflow/airflow-webserver.pid
+airflow/*.pid
+airflow/airflow.cfg
+airflow/package-lock.yml

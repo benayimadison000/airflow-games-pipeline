@@ -1,6 +1,5 @@
 name: Validate Airflow DAGs
 
-# Trigger this workflow on every push and pull request to master
 on:
   push:
     branches: [master]
@@ -10,20 +9,17 @@ on:
 jobs:
   validate-dags:
     name: Validate DAG syntax
-    runs-on: ubuntu-latest   # GitHub spins up a fresh Ubuntu VM for every run
+    runs-on: ubuntu-latest
 
     steps:
-      # Step 1 — Check out your code onto the GitHub runner
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2 — Set up Python 3.12
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      # Step 3 — Cache pip dependencies so the workflow runs faster
       - name: Cache pip packages
         uses: actions/cache@v4
         with:
@@ -32,7 +28,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      # Step 4 — Install Airflow and required providers
       - name: Install dependencies
         run: |
           pip install --upgrade pip
@@ -44,8 +39,6 @@ jobs:
             psycopg2-binary \
             --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.4/constraints-3.12.txt"
 
-      # Step 5 — Set minimal Airflow environment variables
-      # These prevent Airflow from trying to connect to a real database during validation
       - name: Set Airflow environment
         run: |
           echo "AIRFLOW__CORE__LOAD_EXAMPLES=False" >> $GITHUB_ENV
@@ -53,31 +46,12 @@ jobs:
           echo "AIRFLOW__CORE__EXECUTOR=SequentialExecutor" >> $GITHUB_ENV
           echo "AIRFLOW_HOME=/tmp/airflow" >> $GITHUB_ENV
 
-      # Step 6 — Initialise a minimal Airflow DB (needed to import DAGs)
       - name: Initialise Airflow DB
-        run: |
-          airflow db migrate
+        run: airflow db migrate
 
-      # Step 7 — Validate every DAG file by importing it
-      # Python importing a DAG file catches syntax errors and bad imports
       - name: Validate DAG files
-        run: |
-          echo "Validating DAG files..."
-          for dag_file in airflow/dags/*.py; do
-            echo "Checking: $dag_file"
-            python -c "
-import sys
-sys.path.insert(0, 'airflow/dags')
-import importlib.util
-spec = importlib.util.spec_from_file_location('dag', '$dag_file')
-mod  = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
-print('OK: $dag_file')
-"
-          done
-          echo "All DAG files passed validation."
+        run: python scripts/validate_dags.py
 
-      # Step 8 — List DAGs using Airflow CLI (final confirmation)
       - name: List DAGs
         run: |
           AIRFLOW__CORE__DAGS_FOLDER=$(pwd)/airflow/dags airflow dags list

@@ -1,3 +1,4 @@
+from airflow.operators.bash import BashOperator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
@@ -228,6 +229,7 @@ with DAG(
     tags=['games', 'etl'],
 ) as dag:
 
+
     extract_task = PythonOperator(
         task_id='extract',
         python_callable=extract,
@@ -248,9 +250,23 @@ with DAG(
         python_callable=validate,
     )
 
+    dbt_task = BashOperator(
+        task_id='dbt_build',
+        bash_command=(
+            'source /home/ben/airflow-pipeline/venv/bin/activate && '
+            'cd /home/ben/dbt-duckdb-games && '
+            'dbt build --full-refresh'
+        ),
+        env={
+            'DBT_PROFILES_DIR': '/home/ben/.dbt',
+            'PATH': '/home/ben/airflow-pipeline/venv/bin:/usr/bin:/bin',
+        },
+    )
+
     summarise_task = PythonOperator(
         task_id='summarise',
         python_callable=summarise,
     )
 
-    extract_task >> transform_task >> load_task >> validate_task >> summarise_task
+    # Full end-to-end dependency chain
+    extract_task >> transform_task >> load_task >> validate_task >> dbt_task >> summarise_task
